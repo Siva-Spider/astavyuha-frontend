@@ -1,5 +1,5 @@
 // src/api.js
-export const API_BASE = "http://127.0.0.1:5000/api"; // or your server URL
+export const API_BASE = "https://trading-backend-wnsr.onrender.com"; // or your server URL
 
 export async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`);
