@@ -1,35 +1,28 @@
 import React, { useState, useRef, useEffect } from "react";
 import { FaWhatsapp } from "react-icons/fa";
-import { apiPost } from "../api"; // use your API helper
+import { apiPost } from "../api";
 
 export default function Support() {
-  const [user, setUser] = useState(null); // store logged-in user
+  const [user, setUser] = useState(null);
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const messageRef = useRef(null);
   const [loading, setLoading] = useState(true);
-
-  // ✅ Fetch user profile on mount
+  
+  // ✅ Load user info from localStorage directly
   useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const storedUserId = localStorage.getItem("userId");
-        const data = await apiPost("/profile", { userId: storedUserId });
-        if (data.success) {
-          setUser(data);
-          const defaultSignature = `\n\nBest regards,\n${data.username}\nClient ID: ${data.userId}\nEmail: ${data.email}\nContact: ${data.mobilenumber}`;
-          setMessage(`Dear Company,\n${defaultSignature}`);
-        }
-      } catch (err) {
-        console.error("Failed to fetch profile:", err);
-      } finally {
-        setLoading(false);
-      }
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+
+      // Prepare signature for this logged-in user
+      const defaultSignature = `\n\nBest regards,\n${parsedUser.username}\nClient ID: ${parsedUser.userId}\nEmail: ${parsedUser.email}\nContact: ${parsedUser.mobilenumber}`;
+      setMessage(`Dear Company,\n${defaultSignature}`);
     }
-    fetchProfile();
+    setLoading(false);
   }, []);
 
-  // Keep cursor after first line
   const handleFocus = () => {
     if (!messageRef.current) return;
     const lines = messageRef.current.value.split("\n");
@@ -37,7 +30,7 @@ export default function Support() {
     messageRef.current.setSelectionRange(firstLineLength, firstLineLength);
   };
 
-  // ✅ Handle send
+  // ✅ Send support message
   const handleSend = async (e) => {
     e.preventDefault();
     if (!user) return alert("User info not loaded.");
@@ -87,7 +80,12 @@ export default function Support() {
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
           <FaWhatsapp color="#25D366" /> <span>{user.mobilenumber}</span>
         </div>
-        <div>Email: <a href={`mailto:sivag.prasad88@gmail.com`}>sivag.prasad88@gmail.com</a></div>
+        <div>
+          Email:{" "}
+          <a href={`mailto:sivag.prasad88@gmail.com`}>
+            sivag.prasad88@gmail.com
+          </a>
+        </div>
       </div>
 
       {/* Mailing form */}

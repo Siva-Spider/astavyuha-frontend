@@ -177,8 +177,9 @@ const SelectStock = (props) => {
                                                 disabled={!currentParams.symbol_key}
                                             >
                                                 <option value="">Select Symbol</option>
-                                                {currentParams.symbol_key && commodity_map[currentParams.symbol_key].map(val => (
-                                                    <option key={val} value={val}>{val}</option>
+                                                {currentParams.symbol_key && Array.isArray(commodity_map[currentParams.symbol_key]) &&
+                                                    commodity_map[currentParams.symbol_key].map(val => (
+                                                        <option key={val} value={val}>{val}</option>
                                                 ))}
                                             </select>
                                         </label>

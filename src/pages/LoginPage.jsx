@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function LoginPage({ setUser }) {
   const navigate = useNavigate();
-
+  
   // Handler passed to LoginForm
   const handleLogin = (userData) => {
     setUser(userData);
