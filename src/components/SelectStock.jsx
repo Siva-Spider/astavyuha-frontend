@@ -12,7 +12,9 @@ const SelectStock = (props) => {
         onTradeToggle, 
         onStartAllTrades, 
         onClosePosition,
-        onCloseAllPositions  
+        onCloseAllPositions,
+        selectionType,
+        setSelectionType
     } = props;
 
     const stock_map = {
@@ -90,8 +92,6 @@ const SelectStock = (props) => {
         (broker) => broker.profileData && broker.profileData.status === "success"
     );
 
-    const [selectionType, setSelectionType] = useState("");
-
     return (
         <div style={{ padding: "20px" }}>
             <h2>Select Stocks / Commodities</h2>
@@ -99,11 +99,22 @@ const SelectStock = (props) => {
                 <div style={{ marginBottom: "15px", display: "flex", gap: "20px", alignItems: "center" }}>
                     <label>
                         Number of Stocks (1-10):
-                        <input type="number" min="1" max="10" value={stockCount} onChange={onStockCountChange} style={{ marginLeft: "10px" }} />
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max="10" 
+                            value={stockCount} 
+                            onChange={onStockCountChange} 
+                            style={{ marginLeft: "10px" }} 
+                        />
                     </label>
                     <label>
                         Select Type:
-                        <select value={selectionType} onChange={(e) => setSelectionType(e.target.value)} style={{ marginLeft: "10px" }}>
+                        <select 
+                            value={selectionType} 
+                            onChange={(e) => setSelectionType(e.target.value)} 
+                            style={{ marginLeft: "10px" }}
+                        >
                             <option value="EQUITY">EQUITY</option>
                             <option value="COMMODITY">COMMODITY</option>
                         </select>
@@ -219,7 +230,7 @@ const SelectStock = (props) => {
                                         <option value="Ema10_Ema20_Supertrend">
                                             Ema10_Ema20_Supertrend
                                         </option>
-                                        <option value="ADX_MACD_WillR_Supertrend">
+                                        <option value="Ema10_Ema20_MACD_Supertrend">
                                             Ema10_Ema20_MACD_Supertrend
                                         </option>
                                     </select>
@@ -276,12 +287,34 @@ const SelectStock = (props) => {
                                     />
                                 </label>
                             </div>
+                            {/* Tick Size */}
+                            <div style={{ marginRight: "10px" }}>
+                                <label>
+                                    Tick Size:
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={currentParams.tick_size || 0}
+                                        readOnly
+                                        style={{
+                                            marginLeft: "10px",
+                                            width: "60px",
+                                            backgroundColor: "#f0f0f0",
+                                        }}
+                                    />
+                                </label>
+                            </div>
 
                             {/* Total Shares */}
                             <div style={{ marginRight: "10px" }}>
                                 <p style={{ margin: 0, whiteSpace: "nowrap" }}>
                                     Shares: {currentParams.total_shares || 0}
                                 </p>
+                                {currentParams.tick_size !== undefined && (
+                                    <p style={{ margin: 0, whiteSpace: "nowrap" }}>
+                                        Tick Size: {currentParams.tick_size}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Target % */}

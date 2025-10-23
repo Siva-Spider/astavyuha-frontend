@@ -22,10 +22,12 @@ function TradingApp({ user, setUser }) {
         const saved = localStorage.getItem("tradingStatus");
         return saved ? JSON.parse(saved) : {};
     });
-    const [tradeLogs, setTradeLogs] = useState(() => {
-        const saved = localStorage.getItem("tradeLogs");
-        return saved ? JSON.parse(saved) : [];
-    });
+    const [tradeLogs, setTradeLogs] = useState([]);
+    const [payloads, setPayloads] = useState([]);
+
+    // ✅ Persist selection type across sessions
+    const [selectionType, setSelectionType] = useState(() => localStorage.getItem("selectionType") || "EQUITY");
+    useEffect(() => { localStorage.setItem("selectionType", selectionType); }, [selectionType]);
 
     // Persist to localStorage
     useEffect(() => { localStorage.setItem("activeTab", activeTab); }, [activeTab]);
@@ -36,20 +38,83 @@ function TradingApp({ user, setUser }) {
     useEffect(() => { localStorage.setItem("tradingStatus", JSON.stringify(tradingStatus)); }, [tradingStatus]);
     useEffect(() => { localStorage.setItem("tradeLogs", JSON.stringify(tradeLogs)); }, [tradeLogs]);
 
-    // Real-time log streaming
     useEffect(() => {
         let eventSource;
-        try {
-            eventSource = new EventSource(`${API_BASE}/stream-logs`);
-            eventSource.onmessage = (event) => {
-                if (event.data) setTradeLogs(prev => [...prev, event.data]);
-            };
-            eventSource.onerror = () => { if (eventSource) eventSource.close(); };
-        } catch (err) {
-            console.error("EventSource failed:", err);
-        }
-        return () => { if (eventSource) eventSource.close(); };
-    }, []);
+        let reconnectTimer = null;
+        const connect = () => {
+            try {
+                eventSource = new EventSource(`${API_BASE}/stream-logs`);
+
+                eventSource.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === "payload") {
+                            setPayloads(prev => [...prev, data]);
+                        } else {
+                            setTradeLogs(prev => [...prev, typeof event.data === "string" ? event.data : JSON.stringify(event.data)]);
+                        }
+                    } catch (err) {
+                        setTradeLogs(prev => [...prev, event.data]);
+                    }
+                };
+
+                eventSource.addEventListener("log", (evt) => {
+                    try {
+                        const obj = JSON.parse(evt.data);
+                        const formatted = `[${obj.ts}] ${obj.level.toUpperCase()}: ${obj.message}`;
+                        setTradeLogs(prev => [...prev, formatted]);
+                    } catch (err) {
+                        setTradeLogs(prev => [...prev, evt.data]);
+                    }
+                });
+
+                eventSource.addEventListener("payload", (evt) => {
+                    try {
+                        const obj = JSON.parse(evt.data);
+                        setPayloads(prev => [...prev, obj]);
+                        if (obj.name === "candle_data" && obj.data && obj.data.symbol) {
+                            const short = `[${obj.ts}] PAYLOAD: ${obj.data.symbol} candles ${obj.data.candles ? obj.data.candles.length : 0}`;
+                            setTradeLogs(prev => [...prev, short]);
+                        }
+                    } catch (err) {
+                        setTradeLogs(prev => [...prev, `payload parse error: ${err.message}`]);
+                    }
+                });
+
+                eventSource.onerror = (err) => {
+                    console.error("SSE error:", err);
+                    if (eventSource) {
+                        eventSource.close();
+                        eventSource = null;
+                    }
+                    if (!reconnectTimer) {
+                        reconnectTimer = setTimeout(() => {
+                            reconnectTimer = null;
+                            connect();
+                        }, 3000);
+                    }
+                };
+            } catch (err) {
+                console.error("EventSource init failed:", err);
+                reconnectTimer = setTimeout(() => {
+                    reconnectTimer = null;
+                    connect();
+                }, 3000);
+            }
+        };
+
+        connect();
+        return () => {
+            if (eventSource) {
+                eventSource.close();
+                eventSource = null;
+            }
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+        };
+    }, []); 
 
     // Logout
     const handleLogout = () => {
@@ -62,11 +127,10 @@ function TradingApp({ user, setUser }) {
         setTradingParameters({});
         setTradingStatus({});
         setTradeLogs([]);
+        setSelectionType("EQUITY");
     };
 
-    // --- API CALL HANDLERS (Migrated from old App.jsx) ---
-
-    // Connect Broker
+    // --- API handlers ---
     const handleConnectBroker = async (e) => {
         e.preventDefault();
         setTradeLogs([]);
@@ -89,7 +153,6 @@ function TradingApp({ user, setUser }) {
         }
     };
 
-    // Fetch lot size
     const fetchLotSize = async (index, symbol_key, symbol_value, type) => {
         try {
             const response = await fetch(`${API_BASE}/get-lot-size`, {
@@ -100,12 +163,13 @@ function TradingApp({ user, setUser }) {
             const data = await response.json();
             if (data.lot_size) {
                 const fetchedLotSize = data.lot_size;
+                const fetchedTickSize = data.tick_size || 0;
                 const key = `stock_${index}`;
                 const currentLots = tradingParameters[key]?.lots || 0;
                 const newTotalShares = currentLots * fetchedLotSize;
                 setTradingParameters(prev => ({
                     ...prev,
-                    [key]: { ...prev[key], lot_size: fetchedLotSize, total_shares: newTotalShares }
+                    [key]: { ...prev[key], lot_size: fetchedLotSize, tick_size: fetchedTickSize, total_shares: newTotalShares }
                 }));
             }
         } catch (err) {
@@ -113,7 +177,6 @@ function TradingApp({ user, setUser }) {
         }
     };
 
-    // Trade toggle (start/stop individual)
     const handleTradeToggle = async (index) => {
         const key = `stock_${index}`;
         const currentStatus = tradingStatus[key];
@@ -146,7 +209,6 @@ function TradingApp({ user, setUser }) {
         setActiveTab('results');
     };
 
-    // Start all trades
     const handleStartAllTrades = async () => {
         setActiveTab('results');
         let allParams = [];
@@ -178,7 +240,6 @@ function TradingApp({ user, setUser }) {
         }
     };
 
-    // Close position
     const handleClosePosition = async (index) => {
         const key = `stock_${index}`;
         const symbol = tradingParameters[key]?.symbol_value;
@@ -196,7 +257,6 @@ function TradingApp({ user, setUser }) {
         }
     };
 
-    // Close all positions
     const handleCloseAllPositions = async () => {
         try {
             const response = await fetch(`${API_BASE}/close-all-positions`, {
@@ -211,10 +271,8 @@ function TradingApp({ user, setUser }) {
         }
     };
 
-    // Clear logs
     const handleClearLogs = () => setTradeLogs([]);
 
-    // --- Render Tabs ---
     const renderContent = () => {
         switch (activeTab) {
             case 'connect':
@@ -254,6 +312,8 @@ function TradingApp({ user, setUser }) {
                         tradingParameters={tradingParameters}
                         selectedBrokers={selectedBrokers}
                         tradingStatus={tradingStatus}
+                        selectionType={selectionType}
+                        setSelectionType={setSelectionType}
                         onStockCountChange={(e) => {
                             const newCount = parseInt(e.target.value, 10);
                             if (newCount >= 1 && newCount <= 10) {

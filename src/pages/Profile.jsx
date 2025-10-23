@@ -15,7 +15,7 @@ export default function Profile() {
   // Send OTP
   const sendOtp = async () => {
     try {
-      await apiPost("/send-otp", { email: user.email });
+      await apiPost("/send-otp", { email: user.email, userId: user.userId });
       setOtpSent(true);
       alert("OTP sent to your registered email/phone!");
     } catch (err) {
@@ -39,7 +39,7 @@ export default function Profile() {
     }
 
     try {
-      const res = await apiPost("/change-password", {
+       const res = await apiPost(`/change-password?userId=${user.userId}`, {
         current_password: currentPassword,
         new_password: newPassword,
         otp,
