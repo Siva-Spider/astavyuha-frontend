@@ -47,13 +47,14 @@ export default function Sidebar({ userRole, setUser }) {
         padding: "1.5rem 1rem",
         display: "flex",
         flexDirection: "column",
+        justifyContent: "flex-start",
       }}
     >
       <h2 style={{ fontSize: "1.2rem", marginBottom: "1.5rem" }}>
         {isAdmin ? "ADMIN PANEL" : "CLIENT PANEL"}
       </h2>
 
-      <nav style={{ flexGrow: 1 }}>
+      <nav>
         <ul style={{ listStyle: "none", padding: 0 }}>
           {menus.map((item) => (
             <li key={item.name} style={{ marginBottom: "0.5rem" }}>
