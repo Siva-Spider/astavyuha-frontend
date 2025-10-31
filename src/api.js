@@ -1,5 +1,5 @@
 // src/api.js
-export const API_BASE = "https://astavyuha-backend-bodw.onrender.com/api"; // or your server URL
+export const API_BASE = "https://astavyuha-backend-rvjk.onrender.com/api"; // or your server URL
 
 export async function apiGet(path) {
   const res = await fetch(`${API_BASE}${path}`);
